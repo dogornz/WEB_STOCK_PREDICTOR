@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="utf-8" />
   <title>Stock Predictor Vertical</title>
@@ -9,14 +10,109 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@^1"></script>
 
   <style>
-    body { background:#071920; color:#d7fff6; font-family:Inter,Arial; padding:18px; }
-    h1 { color:#16c3b7; text-align:center; margin-bottom:10px; }
-    .controls { display:flex; justify-content:center; gap:12px; margin-bottom:14px; }
-    select,button { padding:8px 12px; border-radius:5px; border:none; }
-    button { background:#16c3b7; color:#002b28; font-weight:600; cursor:pointer; }
-    #chart-container { width: 800px; height: 1000px; margin:auto; background:#0e1a28; border-radius:12px; padding:10px; }
+    :root {
+      --bg: #071920;
+      --card: #0e1a28;
+      --accent: #16c3b7;
+      --muted: #cfeeea;
+      --glass: rgba(255, 255, 255, 0.02);
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--muted);
+      font-family: Inter, Arial, sans-serif;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 {
+      color: var(--accent);
+      text-align: center;
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    select,
+    button {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+    }
+
+    button {
+      background: var(--accent);
+      color: #002b28;
+      cursor: pointer;
+    }
+
+    #chart-container {
+      width: min(1100px, 92vw);
+      height: 600px;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .info {
+      width: min(1100px, 92vw);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .info div {
+      background: var(--glass);
+      padding: 8px 12px;
+      border-radius: 10px;
+      min-width: 140px;
+      text-align: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .info .label {
+      font-size: 12px;
+      color: #9ad6cc;
+    }
+
+    .info .value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e6fff9;
+    }
+
+    /* small screens */
+    @media (max-width:700px) {
+      #chart-container {
+        height: 480px
+      }
+
+      .info {
+        flex-direction: column;
+        align-items: stretch
+      }
+    }
   </style>
 </head>
+
 <body>
   <h1>📊 Stock Predictor (Vertical Chart)</h1>
 
@@ -29,6 +125,30 @@
     <button id="btn">Load & Predict</button>
   </div>
 
+  <!-- Info panel: current price and predicted price -->
+  <div class="info" id="info-panel" style="display:none">
+    <div>
+      <div class="label">Signal</div>
+      <div class="value" id="signal">-</div>
+    </div>
+    <div>
+      <div class="label">Current Close</div>
+      <div class="value" id="current-price">-</div>
+    </div>
+    <div>
+      <div class="label">Predicted Return (tomorrow)</div>
+      <div class="value" id="predicted-return">-</div>
+    </div>
+    <div>
+      <div class="label">Predicted Price (tomorrow)</div>
+      <div class="value" id="predicted-price">-</div>
+    </div>
+    <div>
+      <div class="label">Probability (buy)</div>
+      <div class="value" id="probability">-</div>
+    </div>
+  </div>
+
   <div id="chart-container">
     <canvas id="chart"></canvas>
   </div>
@@ -39,28 +159,71 @@
 
     document.getElementById("btn").addEventListener("click", loadAndPlot);
 
-    async function loadAndPlot(){
+    function formatNum(n) {
+      if (n === null || n === undefined || isNaN(n)) return '-';
+      return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    async function loadAndPlot() {
       const ticker = document.getElementById("ticker").value;
       const res = await fetch(`${API}?ticker=${ticker}&n=200`);
       const json = await res.json();
+
+      const infoPanel = document.getElementById('info-panel');
+      if (json.error) {
+        infoPanel.style.display = 'none';
+        alert(json.error);
+        return;
+      }
+
+      // Populate info values safely
+      const currentPrice = json.current_price ?? null;
+      const predictedPrice = json.predicted_price_tomorrow ?? null;
+      const predictedReturn = json.predicted_return_tomorrow ?? null;
+      const probability = json.probability ?? null;
+      const signal = json.signal ?? '-';
+
+      document.getElementById('signal').textContent = signal;
+      document.getElementById('current-price').textContent = currentPrice !== null ? formatNum(currentPrice) : '-';
+      document.getElementById('predicted-return').textContent = predictedReturn !== null ? (predictedReturn * 100).toFixed(2) + '%' : '-';
+      document.getElementById('predicted-price').textContent = predictedPrice !== null ? formatNum(predictedPrice) : '-';
+      document.getElementById('probability').textContent = probability !== null ? (probability * 100).toFixed(1) + '%' : '-';
+      infoPanel.style.display = 'flex';
 
       const rows = json.data.map(r => ({
         t: new Date(r.Date),
         o: r.Open, h: r.High, l: r.Low, c: r.Close
       }));
 
-      // Close prices for wave
-      const closes = rows.map(r => r.c);
+      // Prepare labels and close series
       const labels = rows.map(r => r.t);
+      const closes = rows.map(r => r.c);
 
-      // Arrow markers
-      const arrows = rows.map((r,i) => {
+      // If predicted price exists, append next day label and pad main series with null for that date
+      let predLabel = null;
+      let mainData = closes.slice();
+      let predDataset = null;
+      if (predictedPrice !== null) {
+        const lastDate = labels[labels.length - 1];
+        const nextDate = new Date(lastDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+        predLabel = nextDate;
+        labels.push(predLabel);
+        mainData.push(null); // no real close for predicted date
+
+        // predicted dataset: nulls until last index then predictedPrice
+        predDataset = Array(labels.length).fill(null);
+        predDataset[labels.length - 1] = predictedPrice;
+      }
+
+      // Arrow markers (for historical points only)
+      const arrows = rows.map((r, i) => {
         if (i === 0) return null;
-        const prev = rows[i-1].c;
+        const prev = rows[i - 1].c;
         const diff = r.c - prev;
         return {
-          x: r.c,
-          y: r.t,
+          x: r.t,
+          y: r.c,
           direction: diff > 0 ? "up" : "down"
         };
       }).filter(Boolean);
@@ -68,54 +231,104 @@
       if (chart) chart.destroy();
 
       const ctx = document.getElementById("chart").getContext("2d");
+
+      // create gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, 400);
+      grad.addColorStop(0, 'rgba(22,195,183,0.9)');
+      grad.addColorStop(0.6, 'rgba(22,195,183,0.15)');
+      grad.addColorStop(1, 'rgba(22,195,183,0.03)');
+
+      const datasets = [
+        {
+          label: `${ticker} Close`,
+          data: mainData,
+          borderColor: '#16c3b7',
+          backgroundColor: grad,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 0,
+          borderWidth: 2
+        }
+      ];
+
+      // add predicted dataset as dashed line with star marker
+      if (predDataset) {
+        datasets.push({
+          label: 'Predicted (tomorrow)',
+          data: predDataset,
+          borderColor: '#ffd166',
+          borderDash: [6, 6],
+          pointStyle: 'star',
+          pointRadius: 10,
+          pointBackgroundColor: '#ffd166',
+          fill: false,
+          tension: 0
+        });
+      }
+
+      // arrows dataset - use scatter plugin not needed: we emulate with point styling on separate dataset
+      const arrowData = rows.map(r => r.c);
+      const arrowPointStyles = rows.map((r, i) => {
+        if (i === 0) return 'circle';
+        return (r.c - rows[i - 1].c) > 0 ? 'triangle' : 'rectRot';
+      });
+      datasets.push({
+        label: 'Arrows',
+        data: arrowData.concat(predDataset ? [null] : []),
+        borderColor: 'transparent',
+        pointStyle: arrowPointStyles.concat(predDataset ? ['circle'] : []),
+        pointRotation: arrowPointStyles.map(s => s === 'triangle' ? 0 : 180).concat(predDataset ? [0] : []),
+        pointRadius: arrowPointStyles.map((s, i) => i === 0 ? 0 : 6).concat(predDataset ? [0] : []),
+        pointBackgroundColor: arrowPointStyles.map((s) => s === 'triangle' ? '#00e676' : '#ff1744').concat(predDataset ? ['#fff'] : [])
+      });
+
       chart = new Chart(ctx, {
-        type: "line",
+        type: 'line',
         data: {
           labels: labels,
-          datasets: [
-            {
-              label: `${ticker} Close`,
-              data: closes,
-              borderColor: "#16c3b7",
-              tension: 0.3,
-              pointRadius: 0
-            },
-            {
-              label: "Arrows",
-              data: closes,
-              borderColor: "transparent",
-              pointStyle: arrows.map(a => a.direction === "up" ? "triangle" : "rectRot"),
-              pointRotation: arrows.map(a => a.direction === "up" ? 0 : 180),
-              pointRadius: 8,
-              backgroundColor: arrows.map(a => a.direction === "up" ? "#00e676" : "#ff1744")
-            }
-          ]
+          datasets: datasets
         },
         options: {
-          indexAxis: "x", // thời gian theo trục dọc
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: false },
           plugins: {
-            legend: { labels: { color:"#d7fff6" } },
+            legend: { labels: { color: '#d7fff6', boxWidth: 12 } },
             tooltip: {
               callbacks: {
-                label: (ctx) => `Close: ${ctx.raw}`
+                title: (items) => {
+                  if (!items.length) return '';
+                  const d = items[0].label;
+                  const dt = new Date(d);
+                  return dt.toLocaleDateString();
+                },
+                label: (ctx) => {
+                  const v = ctx.raw;
+                  if (v === null) return '';
+                  const label = ctx.dataset.label || '';
+                  return `${label}: ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                }
               }
             }
           },
           scales: {
-            y: {
-              ticks: { color:"#cfeeea" },
-              grid: { color:"rgba(255,255,255,0.05)" }
-            },
             x: {
-              type: "time",
-              time: { unit: "day" },
-              ticks: { color:"#cfeeea" },
-              grid: { color:"rgba(255,255,255,0.05)" }
+              type: 'time',
+              time: { unit: 'day', tooltipFormat: 'DD LLL yyyy' },
+              ticks: { color: '#cfeeea' },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            y: {
+              ticks: { color: '#cfeeea', callback: (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+              grid: { color: 'rgba(255,255,255,0.04)' }
             }
           }
         }
       });
+
+      // draw a small label near predicted point in DOM (optional)
     }
   </script>
 </body>
+
 </html>
