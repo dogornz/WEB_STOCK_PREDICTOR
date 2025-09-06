@@ -101,14 +101,3 @@ uvicorn backend.main:app --reload
 - `MODEL_CACHE_TTL`, `DATA_CACHE_TTL` - TTL cache (giây)
 
 ---
-
-## Lưu ý & gợi ý cải thiện
-
-- Dùng yfinance phù hợp cho dev/demo; production nên có nguồn dữ liệu đáng tin cậy và caching/Rate-limit tốt.
-- Label hiện là binary và đơn giản (horizon cố định). Nên cân nhắc multi-class, regression hoặc reward-based labeling.
-- Đánh giá: hiện dùng holdout 80/20. Với time-series nên dùng walk-forward CV.
-- Nên thêm logging, model versioning, tests, CI và monitoring khi deploy thực tế.
-
----
-
-Nếu bạn muốn, tôi có thể thêm hướng dẫn chi tiết từng bước (command line), tạo Dockerfile hoặc chuyển cache hoàn toàn sang Redis + giới thiệu endpoint để retrain tự động.
