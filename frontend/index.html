@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="utf-8" />
   <title>Stock Predictor Vertical</title>
@@ -9,14 +10,80 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@^1"></script>
 
   <style>
-    body { background:#071920; color:#d7fff6; font-family:Inter,Arial; padding:18px; }
-    h1 { color:#16c3b7; text-align:center; margin-bottom:10px; }
-    .controls { display:flex; justify-content:center; gap:12px; margin-bottom:14px; }
-    select,button { padding:8px 12px; border-radius:5px; border:none; }
-    button { background:#16c3b7; color:#002b28; font-weight:600; cursor:pointer; }
-    #chart-container { width: 800px; height: 1000px; margin:auto; background:#0e1a28; border-radius:12px; padding:10px; }
+    body {
+      background: #071920;
+      color: #d7fff6;
+      font-family: Inter, Arial;
+      padding: 18px;
+    }
+
+    h1 {
+      color: #16c3b7;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    select,
+    button {
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: none;
+    }
+
+    button {
+      background: #16c3b7;
+      color: #002b28;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #chart-container {
+      width: 800px;
+      height: 1000px;
+      margin: auto;
+      background: #0e1a28;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .info {
+      width: 800px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: #cfeeea;
+      margin-bottom: 8px;
+    }
+
+    .info div {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px 12px;
+      border-radius: 8px;
+      min-width: 160px;
+      text-align: center;
+    }
+
+    .info .label {
+      font-size: 12px;
+      color: #9ad6cc;
+    }
+
+    .info .value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e6fff9;
+    }
   </style>
 </head>
+
 <body>
   <h1>📊 Stock Predictor (Vertical Chart)</h1>
 
@@ -29,6 +96,30 @@
     <button id="btn">Load & Predict</button>
   </div>
 
+  <!-- Info panel: current price and predicted price -->
+  <div class="info" id="info-panel" style="display:none">
+    <div>
+      <div class="label">Signal</div>
+      <div class="value" id="signal">-</div>
+    </div>
+    <div>
+      <div class="label">Current Close</div>
+      <div class="value" id="current-price">-</div>
+    </div>
+    <div>
+      <div class="label">Predicted Return (tomorrow)</div>
+      <div class="value" id="predicted-return">-</div>
+    </div>
+    <div>
+      <div class="label">Predicted Price (tomorrow)</div>
+      <div class="value" id="predicted-price">-</div>
+    </div>
+    <div>
+      <div class="label">Probability (buy)</div>
+      <div class="value" id="probability">-</div>
+    </div>
+  </div>
+
   <div id="chart-container">
     <canvas id="chart"></canvas>
   </div>
@@ -39,10 +130,32 @@
 
     document.getElementById("btn").addEventListener("click", loadAndPlot);
 
-    async function loadAndPlot(){
+    async function loadAndPlot() {
       const ticker = document.getElementById("ticker").value;
       const res = await fetch(`${API}?ticker=${ticker}&n=200`);
       const json = await res.json();
+
+      // show info panel if available
+      const infoPanel = document.getElementById('info-panel');
+      if (json.error) {
+        infoPanel.style.display = 'none';
+        alert(json.error);
+        return;
+      }
+
+      // Populate info values safely
+      const currentPrice = json.current_price ?? null;
+      const predictedPrice = json.predicted_price_tomorrow ?? null;
+      const predictedReturn = json.predicted_return_tomorrow ?? null;
+      const probability = json.probability ?? null;
+      const signal = json.signal ?? '-';
+
+      document.getElementById('signal').textContent = signal;
+      document.getElementById('current-price').textContent = currentPrice !== null ? currentPrice.toFixed(2) : '-';
+      document.getElementById('predicted-return').textContent = predictedReturn !== null ? (predictedReturn * 100).toFixed(2) + '%' : '-';
+      document.getElementById('predicted-price').textContent = predictedPrice !== null ? predictedPrice.toFixed(2) : '-';
+      document.getElementById('probability').textContent = probability !== null ? (probability * 100).toFixed(1) + '%' : '-';
+      infoPanel.style.display = 'flex';
 
       const rows = json.data.map(r => ({
         t: new Date(r.Date),
@@ -54,9 +167,9 @@
       const labels = rows.map(r => r.t);
 
       // Arrow markers
-      const arrows = rows.map((r,i) => {
+      const arrows = rows.map((r, i) => {
         if (i === 0) return null;
-        const prev = rows[i-1].c;
+        const prev = rows[i - 1].c;
         const diff = r.c - prev;
         return {
           x: r.c,
@@ -94,7 +207,7 @@
         options: {
           indexAxis: "x", // thời gian theo trục dọc
           plugins: {
-            legend: { labels: { color:"#d7fff6" } },
+            legend: { labels: { color: "#d7fff6" } },
             tooltip: {
               callbacks: {
                 label: (ctx) => `Close: ${ctx.raw}`
@@ -103,14 +216,14 @@
           },
           scales: {
             y: {
-              ticks: { color:"#cfeeea" },
-              grid: { color:"rgba(255,255,255,0.05)" }
+              ticks: { color: "#cfeeea" },
+              grid: { color: "rgba(255,255,255,0.05)" }
             },
             x: {
               type: "time",
               time: { unit: "day" },
-              ticks: { color:"#cfeeea" },
-              grid: { color:"rgba(255,255,255,0.05)" }
+              ticks: { color: "#cfeeea" },
+              grid: { color: "rgba(255,255,255,0.05)" }
             }
           }
         }
@@ -118,4 +231,5 @@
     }
   </script>
 </body>
+
 </html>
