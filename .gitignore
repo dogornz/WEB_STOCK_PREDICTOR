@@ -1,0 +1,96 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+venv.bak/
+
+# Pipenv
+Pipfile.lock
+
+# Pyenv
+.python-version
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# VS Code
+.vscode/
+
+# IDEs
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints
+
+# Logs
+logs/
+*.log
+
+# Data and models (do NOT commit large binary datasets or trained models)
+data/
+models/*.joblib
+models/*.pkl
+models/*.sqlite
+
+# Environment variables
+.env
+.env.*
+
+# Others
+*.sqlite3
+*.db
+
+# Node
+node_modules/
+
+# Ignore local secrets or credentials files
+credentials.json
+
+# End of file
